@@ -1,3 +1,4 @@
+// components/GuestHome.tsx
 import React from "react";
 import {
   View,
@@ -5,26 +6,19 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from "react-native";
-import { Plus, Play } from "lucide-react-native";
+import { Plus } from "lucide-react-native";
 import { useTheme, Shadows } from "../constants/Theme";
-import { globalStyles } from "../styles/globalStyles";
 
 interface GuestHomeProps {
   onSelectDrink: (drinkId: string) => void;
+  hasActiveOrder?: boolean;
+  onGoToBrewing?: () => void;
+  disabledDrinkIds?: string[];
 }
 
-const favoriteDrinks = [
-  { id: "latte", name: "Latte", strength: "Weak, L", bgColor: "#fef3c7" },
-  {
-    id: "espresso",
-    name: "Double Espresso",
-    strength: "Strong, S",
-    bgColor: "#f3e8ff",
-  },
-];
-
-const drinks = [
+const allDrinks = [
   { id: "caffe-latte", name: "Caffè latte" },
   { id: "espresso", name: "Espresso" },
   { id: "ristretto", name: "Ristretto" },
@@ -40,164 +34,118 @@ const drinks = [
   { id: "sweet-latte", name: "Sweet latte" },
   { id: "espresso-doppio", name: "Espresso doppio" },
   { id: "hot-water", name: "Hot water" },
-  { id: "hot-water-green-tea", name: "Hot water green tea" },
   { id: "portion-of-milk", name: "Portion of milk" },
   { id: "portion-of-milk-foam", name: "Portion of milk foam" },
 ];
 
-const CoffeeCup = ({
-  color = "#C4A484",
-  size = 50,
-}: {
-  color?: string;
-  size?: number;
-}) => (
-  <View
-    style={{
-      width: size,
-      height: size * 1.4,
-      alignItems: "center",
-      justifyContent: "center",
-    }}
-  >
-    <View
-      style={{
-        width: size * 0.8,
-        height: size * 1.2,
-        backgroundColor: color,
-        borderRadius: size * 0.15,
-        borderTopLeftRadius: size * 0.05,
-        borderTopRightRadius: size * 0.05,
-      }}
-    />
-    <View
-      style={{
-        position: "absolute",
-        top: 0,
-        width: size * 0.9,
-        height: size * 0.15,
-        backgroundColor: "#E5E7EB",
-        borderRadius: size * 0.5,
-      }}
-    />
-  </View>
-);
+const drinkImages: { [key: string]: any } = {
+  "caffe-latte": require("../assets/drinks/caffe-latte.png"),
+  espresso: require("../assets/drinks/espresso.png"),
+  ristretto: require("../assets/drinks/ristretto.png"),
+  cortado: require("../assets/drinks/cortado.png"),
+  "latte-macchiato": require("../assets/drinks/latte-macchiato.png"),
+  coffee: require("../assets/drinks/coffee.png"),
+  cappuccino: require("../assets/drinks/cappuccino.png"),
+  "cold-brew-coffee": require("../assets/drinks/cold-brew-coffee.png"),
+  "espresso-macchiato": require("../assets/drinks/espresso-macchiato.png"),
+  "flat-white": require("../assets/drinks/flat-white.png"),
+  americano: require("../assets/drinks/americano.png"),
+  "lungo-barista": require("../assets/drinks/lungo-barista.png"),
+  "sweet-latte": require("../assets/drinks/sweet-latte.png"),
+  "espresso-doppio": require("../assets/drinks/espresso-doppio.png"),
+  "hot-water": require("../assets/drinks/hot-water.png"),
+  "portion-of-milk": require("../assets/drinks/portion-of-milk.png"),
+  "portion-of-milk-foam": require("../assets/drinks/portion-of-milk-foam.png"),
+};
 
-export function GuestHome({ onSelectDrink }: GuestHomeProps) {
+export function GuestHome({
+  onSelectDrink,
+  hasActiveOrder,
+  onGoToBrewing,
+  disabledDrinkIds = [],
+}: GuestHomeProps) {
   const { colors } = useTheme();
-
-  const getDrinkColor = (drinkId: string) => {
-    if (
-      drinkId.includes("latte") ||
-      drinkId.includes("macchiato") ||
-      drinkId === "cappuccino" ||
-      drinkId === "flat-white"
-    ) {
-      return "#C4A484";
-    }
-    if (
-      drinkId.includes("espresso") ||
-      drinkId === "ristretto" ||
-      drinkId === "cortado" ||
-      drinkId === "coffee" ||
-      drinkId === "americano" ||
-      drinkId === "lungo-barista"
-    ) {
-      return "#6F4E37";
-    }
-    if (drinkId.includes("milk")) {
-      return "#F5F5F5";
-    }
-    if (drinkId.includes("water")) {
-      return "#E0F2FE";
-    }
-    return "#C4A484";
-  };
+  const drinks = allDrinks.filter((d) => !disabledDrinkIds.includes(d.id));
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Content */}
       <ScrollView
         style={styles.content}
-        contentContainerStyle={[
-          styles.scrollContent,
-          globalStyles.scrollContentWithBottomNav,
-        ]}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Greeting */}
         <Text style={[styles.greeting, { color: colors.foreground }]}>
           Hello, Guest
         </Text>
 
-        {/* Favourites */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              Favourites
+        {hasActiveOrder && (
+          <TouchableOpacity
+            style={styles.busyBanner}
+            onPress={onGoToBrewing}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.busyBannerText}>
+              ☕ Your order is in progress
             </Text>
-            <TouchableOpacity style={styles.addButton}>
-              <Plus size={20} color={colors.foreground} />
-            </TouchableOpacity>
-          </View>
+            <Text style={styles.busyBannerLink}>View →</Text>
+          </TouchableOpacity>
+        )}
 
-          <View style={styles.favoritesGrid}>
-            {favoriteDrinks.map((drink) => (
-              <TouchableOpacity
-                key={drink.id}
-                onPress={() => onSelectDrink(drink.id)}
-                style={[
-                  styles.favoriteCard,
-                  { backgroundColor: drink.bgColor },
-                ]}
-              >
-                <CoffeeCup size={45} />
-                <Text
-                  style={[
-                    styles.favoriteCardName,
-                    { color: colors.foreground },
-                  ]}
-                >
-                  {drink.name}
-                </Text>
-                <Text
-                  style={[
-                    styles.favoriteCardStrength,
-                    { color: colors.mutedForeground },
-                  ]}
-                >
-                  {drink.strength}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* All Drinks */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
             Choose your coffee
           </Text>
-
           <View style={styles.drinksGrid}>
             {drinks.map((drink) => (
               <TouchableOpacity
                 key={drink.id}
                 onPress={() => onSelectDrink(drink.id)}
+                disabled={hasActiveOrder}
                 style={[
                   styles.drinkCard,
                   Shadows.sm,
                   { backgroundColor: colors.card, borderColor: colors.border },
+                  hasActiveOrder && styles.cardDisabled,
                 ]}
+                activeOpacity={0.7}
               >
-                <CoffeeCup color={getDrinkColor(drink.id)} size={50} />
+                {drinkImages[drink.id] && (
+                  <Image
+                    source={drinkImages[drink.id]}
+                    style={styles.drinkImage}
+                    resizeMode="contain"
+                  />
+                )}
                 <Text
-                  style={[styles.drinkCardName, { color: colors.foreground }]}
+                  style={[styles.drinkName, { color: colors.foreground }]}
                   numberOfLines={2}
                 >
                   {drink.name}
                 </Text>
               </TouchableOpacity>
             ))}
+
+            <TouchableOpacity
+              onPress={() => onSelectDrink("custom")}
+              disabled={hasActiveOrder}
+              style={[
+                styles.customCard,
+                { backgroundColor: colors.muted, borderColor: colors.border },
+                hasActiveOrder && styles.cardDisabled,
+              ]}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[styles.customIcon, { backgroundColor: colors.card }]}
+              >
+                <Plus size={24} color={colors.mutedForeground} />
+              </View>
+              <Text
+                style={[styles.customText, { color: colors.mutedForeground }]}
+              >
+                Custom
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -206,67 +154,26 @@ export function GuestHome({ onSelectDrink }: GuestHomeProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 140,
-  },
-  greeting: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 24,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
+  container: { flex: 1 },
+  content: { flex: 1 },
+  scrollContent: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 140 },
+  greeting: { fontSize: 20, fontWeight: "600", marginBottom: 16 },
+
+  busyBanner: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#000000",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  addButton: {
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  favoritesGrid: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  favoriteCard: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 16,
-    minHeight: 100,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  favoriteCardName: {
-    fontSize: 14,
-    fontWeight: "500",
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  favoriteCardStrength: {
-    fontSize: 12,
-  },
-  drinksGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-  },
+  busyBannerText: { color: "#ffffff", fontSize: 14, fontWeight: "500" },
+  busyBannerLink: { color: "#10b981", fontSize: 14, fontWeight: "600" },
+  section: { marginBottom: 24 },
+  sectionTitle: { fontSize: 16, fontWeight: "600", marginBottom: 16 },
+  drinksGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   drinkCard: {
     width: "48%",
     borderWidth: 1,
@@ -276,10 +183,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  drinkCardName: {
-    fontSize: 14,
-    textAlign: "center",
-    marginTop: 12,
-    lineHeight: 18,
+  cardDisabled: { opacity: 0.4 },
+  drinkImage: { width: 70, height: 70, marginBottom: 8 },
+  drinkName: { fontSize: 14, textAlign: "center", lineHeight: 18 },
+  customCard: {
+    width: "48%",
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderRadius: 16,
+    padding: 16,
+    minHeight: 140,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  customIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  customText: { fontSize: 14 },
 });
