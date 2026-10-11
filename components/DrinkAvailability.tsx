@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// components/DrinkAvailability.tsx
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ArrowLeft,
   Coffee,
@@ -18,8 +20,11 @@ import {
 import { useTheme, Shadows } from "../constants/Theme";
 import { Button } from "./ui/button";
 
+const STORAGE_KEY = "disabledDrinkIds";
+
 interface DrinkAvailabilityProps {
   onBack: () => void;
+  onSaveAvailability: (disabledIds: string[]) => void; // obavijesti App.tsx
 }
 
 interface DrinkOption {
@@ -30,166 +35,192 @@ interface DrinkOption {
   enabled: boolean;
 }
 
-export function DrinkAvailability({ onBack }: DrinkAvailabilityProps) {
+const defaultDrinks: DrinkOption[] = [
+  {
+    id: "caffe-latte",
+    name: "Caffè latte",
+    description: "Classic Italian latte",
+    icon: "coffee",
+    enabled: true,
+  },
+  {
+    id: "espresso",
+    name: "Espresso",
+    description: "Strong & bold shot",
+    icon: "coffee",
+    enabled: true,
+  },
+  {
+    id: "ristretto",
+    name: "Ristretto",
+    description: "Concentrated espresso",
+    icon: "coffee",
+    enabled: true,
+  },
+  {
+    id: "cortado",
+    name: "Cortado",
+    description: "Espresso with milk",
+    icon: "milk",
+    enabled: true,
+  },
+  {
+    id: "latte-macchiato",
+    name: "Latte macchiato",
+    description: "Layered espresso",
+    icon: "milk",
+    enabled: true,
+  },
+  {
+    id: "coffee",
+    name: "Coffee",
+    description: "Classic drip coffee",
+    icon: "coffee",
+    enabled: true,
+  },
+  {
+    id: "cappuccino",
+    name: "Cappuccino",
+    description: "Rich with foam",
+    icon: "milk",
+    enabled: true,
+  },
+  {
+    id: "cold-brew-coffee",
+    name: "Cold Brew Coffee",
+    description: "Smooth cold brew",
+    icon: "droplet",
+    enabled: true,
+  },
+  {
+    id: "espresso-macchiato",
+    name: "Espresso macchiato",
+    description: "Espresso marked",
+    icon: "coffee",
+    enabled: true,
+  },
+  {
+    id: "flat-white",
+    name: "Flat White",
+    description: "Velvety microfoam",
+    icon: "milk",
+    enabled: true,
+  },
+  {
+    id: "americano",
+    name: "Americano",
+    description: "Diluted espresso",
+    icon: "coffee",
+    enabled: true,
+  },
+  {
+    id: "lungo-barista",
+    name: "Lungo Barista",
+    description: "Long espresso",
+    icon: "coffee",
+    enabled: true,
+  },
+  {
+    id: "sweet-latte",
+    name: "Sweet latte",
+    description: "Sweetened latte",
+    icon: "sparkles",
+    enabled: true,
+  },
+  {
+    id: "espresso-doppio",
+    name: "Espresso doppio",
+    description: "Double espresso",
+    icon: "coffee",
+    enabled: true,
+  },
+  {
+    id: "hot-water",
+    name: "Hot water",
+    description: "Plain hot water",
+    icon: "droplet",
+    enabled: true,
+  },
+  {
+    id: "portion-of-milk",
+    name: "Portion of milk",
+    description: "Steamed milk",
+    icon: "milk",
+    enabled: true,
+  },
+  {
+    id: "portion-of-milk-foam",
+    name: "Portion of milk foam",
+    description: "Foamed milk",
+    icon: "milk",
+    enabled: true,
+  },
+];
+
+const getIcon = (iconType: string) => {
+  switch (iconType) {
+    case "coffee":
+      return Coffee;
+    case "milk":
+      return Milk;
+    case "droplet":
+      return Droplet;
+    case "sparkles":
+      return Sparkles;
+    default:
+      return Coffee;
+  }
+};
+
+export function DrinkAvailability({
+  onBack,
+  onSaveAvailability,
+}: DrinkAvailabilityProps) {
   const { colors } = useTheme();
-  const [drinks, setDrinks] = useState<DrinkOption[]>([
-    {
-      id: "caffe-latte",
-      name: "Caffè latte",
-      description: "Classic Italian latte",
-      icon: "coffee",
-      enabled: true,
-    },
-    {
-      id: "espresso",
-      name: "Espresso",
-      description: "Strong & bold shot",
-      icon: "coffee",
-      enabled: true,
-    },
-    {
-      id: "ristretto",
-      name: "Ristretto",
-      description: "Concentrated espresso",
-      icon: "coffee",
-      enabled: true,
-    },
-    {
-      id: "cortado",
-      name: "Cortado",
-      description: "Espresso with milk",
-      icon: "milk",
-      enabled: true,
-    },
-    {
-      id: "latte-macchiato",
-      name: "Latte macchiato",
-      description: "Layered espresso",
-      icon: "milk",
-      enabled: true,
-    },
-    {
-      id: "coffee",
-      name: "Coffee",
-      description: "Classic drip coffee",
-      icon: "coffee",
-      enabled: true,
-    },
-    {
-      id: "cappuccino",
-      name: "Cappuccino",
-      description: "Rich with foam",
-      icon: "milk",
-      enabled: true,
-    },
-    {
-      id: "cold-brew-coffee",
-      name: "Cold Brew Coffee",
-      description: "Smooth cold brew",
-      icon: "droplet",
-      enabled: true,
-    },
-    {
-      id: "espresso-macchiato",
-      name: "Espresso macchiato",
-      description: "Espresso marked",
-      icon: "coffee",
-      enabled: true,
-    },
-    {
-      id: "flat-white",
-      name: "Flat White",
-      description: "Velvety microfoam",
-      icon: "milk",
-      enabled: true,
-    },
-    {
-      id: "americano",
-      name: "Americano",
-      description: "Diluted espresso",
-      icon: "coffee",
-      enabled: true,
-    },
-    {
-      id: "lungo-barista",
-      name: "Lungo Barista",
-      description: "Long espresso",
-      icon: "coffee",
-      enabled: true,
-    },
-    {
-      id: "sweet-latte",
-      name: "Sweet latte",
-      description: "Sweetened latte",
-      icon: "sparkles",
-      enabled: true,
-    },
-    {
-      id: "espresso-doppio",
-      name: "Espresso doppio",
-      description: "Double espresso",
-      icon: "coffee",
-      enabled: true,
-    },
-    {
-      id: "hot-water",
-      name: "Hot water",
-      description: "Plain hot water",
-      icon: "droplet",
-      enabled: true,
-    },
-    {
-      id: "hot-water-green-tea",
-      name: "Hot water green tea",
-      description: "Tea ready water",
-      icon: "droplet",
-      enabled: true,
-    },
-    {
-      id: "portion-of-milk",
-      name: "Portion of milk",
-      description: "Steamed milk",
-      icon: "milk",
-      enabled: true,
-    },
-    {
-      id: "portion-of-milk-foam",
-      name: "Portion of milk foam",
-      description: "Foamed milk",
-      icon: "milk",
-      enabled: true,
-    },
-  ]);
+  const [drinks, setDrinks] = useState<DrinkOption[]>(defaultDrinks);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Učitaj sačuvano stanje pri pokretanju
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((val) => {
+        if (val) {
+          const disabledIds: string[] = JSON.parse(val);
+          setDrinks(
+            defaultDrinks.map((d) => ({
+              ...d,
+              enabled: !disabledIds.includes(d.id),
+            })),
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const toggleDrink = (id: string) => {
-    setDrinks(
-      drinks.map((drink) =>
-        drink.id === id ? { ...drink, enabled: !drink.enabled } : drink
-      )
+    setDrinks((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, enabled: !d.enabled } : d)),
     );
+    setHasChanges(true);
   };
 
-  const handleSave = () => {
-    Alert.alert("Success", "Drink availability updated successfully!");
-    setTimeout(onBack, 1000);
+  const handleSave = async () => {
+    const disabledIds = drinks.filter((d) => !d.enabled).map((d) => d.id);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(disabledIds));
+      onSaveAvailability(disabledIds); // obavijesti App.tsx
+      setHasChanges(false);
+      Alert.alert(
+        "Saved",
+        "Drink availability updated. Changes are now visible to all users.",
+        [{ text: "OK", onPress: onBack }],
+      );
+    } catch {
+      Alert.alert("Error", "Could not save changes. Please try again.");
+    }
   };
 
   const enabledCount = drinks.filter((d) => d.enabled).length;
-
-  const getIcon = (iconType: string) => {
-    switch (iconType) {
-      case "coffee":
-        return Coffee;
-      case "milk":
-        return Milk;
-      case "droplet":
-        return Droplet;
-      case "sparkles":
-        return Sparkles;
-      default:
-        return Coffee;
-    }
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: "#f9fafb" }]}>
@@ -215,8 +246,6 @@ export function DrinkAvailability({ onBack }: DrinkAvailabilityProps) {
             </Text>
           </View>
         </View>
-
-        {/* Stats */}
         <View style={[styles.statsCard, { backgroundColor: colors.muted }]}>
           <Text style={[styles.statsLabel, { color: colors.mutedForeground }]}>
             Active Drinks
@@ -225,9 +254,13 @@ export function DrinkAvailability({ onBack }: DrinkAvailabilityProps) {
             {enabledCount} / {drinks.length}
           </Text>
         </View>
+        {hasChanges && (
+          <View style={styles.unsavedBadge}>
+            <Text style={styles.unsavedText}>Unsaved changes</Text>
+          </View>
+        )}
       </View>
 
-      {/* Content */}
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.scrollContent}
@@ -295,8 +328,6 @@ export function DrinkAvailability({ onBack }: DrinkAvailabilityProps) {
             );
           })}
         </View>
-
-        {/* Info */}
         <View style={styles.infoCard}>
           <Text style={styles.infoText}>
             💡 Disabled drinks will not appear in the drink selection menu for
@@ -305,7 +336,7 @@ export function DrinkAvailability({ onBack }: DrinkAvailabilityProps) {
         </View>
       </ScrollView>
 
-      {/* Fixed Bottom Button */}
+      {/* Save Button */}
       <View
         style={[
           styles.footer,
@@ -322,9 +353,7 @@ export function DrinkAvailability({ onBack }: DrinkAvailabilityProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -345,13 +374,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-  },
-  headerSubtitle: {
-    fontSize: 14,
-  },
+  headerTitle: { fontSize: 20, fontWeight: "600" },
+  headerSubtitle: { fontSize: 14 },
   statsCard: {
     borderRadius: 16,
     padding: 16,
@@ -359,23 +383,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  statsLabel: {
-    fontSize: 14,
+  statsLabel: { fontSize: 14 },
+  statsValue: { fontSize: 20, fontWeight: "600" },
+  unsavedBadge: {
+    backgroundColor: "#fef3c7",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 8,
+    alignSelf: "flex-start",
   },
-  statsValue: {
-    fontSize: 20,
-    fontWeight: "600",
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 24,
-    paddingBottom: 120,
-  },
-  drinksList: {
-    gap: 12,
-  },
+  unsavedText: { fontSize: 12, color: "#92400e", fontWeight: "500" },
+  content: { flex: 1 },
+  scrollContent: { padding: 24, paddingBottom: 120 },
+  drinksList: { gap: 12 },
   drinkCard: {
     borderRadius: 16,
     padding: 20,
@@ -384,9 +405,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  drinkCardDisabled: {
-    opacity: 0.5,
-  },
+  drinkCardDisabled: { opacity: 0.5 },
   drinkCardContent: {
     flexDirection: "row",
     alignItems: "center",
@@ -400,23 +419,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  drinkInfo: {
-    flex: 1,
-  },
-  drinkName: {
-    fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 2,
-  },
-  drinkDescription: {
-    fontSize: 14,
-  },
-  switch: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    padding: 2,
-  },
+  drinkInfo: { flex: 1 },
+  drinkName: { fontSize: 16, fontWeight: "500", marginBottom: 2 },
+  drinkDescription: { fontSize: 14 },
+  switch: { width: 44, height: 24, borderRadius: 12, padding: 2 },
   switchThumb: {
     width: 20,
     height: 20,
@@ -431,10 +437,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 24,
   },
-  infoText: {
-    fontSize: 14,
-    color: "#1e3a8a",
-  },
+  infoText: { fontSize: 14, color: "#1e3a8a" },
   footer: {
     position: "absolute",
     bottom: 0,
@@ -454,9 +457,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  saveButtonText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
+  saveButtonText: { color: "#ffffff", fontSize: 14, fontWeight: "600" },
 });

@@ -1,5 +1,5 @@
 // components/Analytics.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -14,10 +14,13 @@ import {
   ArrowLeft,
   Download,
   Mail,
+  ChevronDown,
   TrendingUp,
-  Coffee,
 } from "lucide-react-native";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import { useTheme, Shadows } from "../constants/Theme";
+import { useDatabase } from "../contexts/DatabaseContext";
 import { Button } from "./ui/button";
 
 interface AnalyticsProps {
@@ -25,7 +28,31 @@ interface AnalyticsProps {
   onBack: () => void;
 }
 
-const dataByYear: Record<string, any[]> = {
+const COFFEE_G_PER_ORDER = 20;
+const MILK_ML_PER_ORDER = 15;
+const SUGAR_G_PER_ORDER = 2.8;
+
+const dataByYear: Record<
+  string,
+  {
+    month: string;
+    orders: number;
+    coffee: number;
+    milk: number;
+    sugar: number;
+  }[]
+> = {
+  "2026": [
+    { month: "Jan", orders: 800, coffee: 16000, milk: 12000, sugar: 2260 },
+    { month: "Feb", orders: 760, coffee: 15200, milk: 11400, sugar: 2150 },
+    { month: "Mar", orders: 700, coffee: 14000, milk: 10500, sugar: 1980 },
+    { month: "Apr", orders: 640, coffee: 12800, milk: 9600, sugar: 1810 },
+    { month: "May", orders: 600, coffee: 12000, milk: 9000, sugar: 1700 },
+    { month: "Jun", orders: 480, coffee: 9600, milk: 7200, sugar: 1360 },
+    { month: "Jul", orders: 440, coffee: 8800, milk: 6600, sugar: 1250 },
+    { month: "Aug", orders: 460, coffee: 9200, milk: 6900, sugar: 1290 },
+    { month: "Sep", orders: 185, coffee: 3700, milk: 2775, sugar: 520 },
+  ],
   "2025": [
     { month: "Jan", orders: 720, coffee: 14400, milk: 10800, sugar: 2040 },
     { month: "Feb", orders: 690, coffee: 13800, milk: 10350, sugar: 1950 },
@@ -70,43 +97,154 @@ const dataByYear: Record<string, any[]> = {
   ],
 };
 
-const drinkPopularity = [
-  { name: "Cappuccino", count: 245, percentage: 100 },
-  { name: "Latte", count: 198, percentage: 81 },
-  { name: "Espresso", count: 167, percentage: 68 },
-  { name: "Mocha", count: 142, percentage: 58 },
-  { name: "Hot Chocolate", count: 98, percentage: 40 },
-];
+const generateReportHTML = (
+  data: (typeof dataByYear)["2026"],
+  year: string,
+  generatedAt: string,
+) => {
+  const totals = {
+    orders: data.reduce((s, r) => s + r.orders, 0),
+    coffee: data.reduce((s, r) => s + r.coffee, 0),
+    milk: data.reduce((s, r) => s + r.milk, 0),
+    sugar: data.reduce((s, r) => s + r.sugar, 0),
+  };
+  const rows = data
+    .map(
+      (r, i) =>
+        `<tr class="${i % 2 === 0 ? "even" : ""}"><td>${r.month}</td><td>${r.orders}</td><td>${r.coffee.toLocaleString()}g</td><td>${r.milk.toLocaleString()}ml</td><td>${r.sugar.toLocaleString()}g</td></tr>`,
+    )
+    .join("");
+  return `<html><head><meta charset="utf-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:40px;color:#1f2937}.header{background:#16a34a;color:white;padding:24px;border-radius:12px;margin-bottom:30px}h1{font-size:22px;margin-bottom:4px}.sub{font-size:13px;opacity:.8}table{width:100%;border-collapse:collapse}th{background:#16a34a;color:white;padding:10px 14px;text-align:left;font-size:13px}td{padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px}.even td{background:#f9fafb}.total td{background:#f0fdf4;font-weight:700;border-top:2px solid #16a34a}.footer{margin-top:24px;font-size:11px;color:#9ca3af;text-align:center}</style></head><body><div class="header"><h1>☕ Coffee Machine Analytics — ${year}</h1><div class="sub">Generated: ${generatedAt}</div></div><table><thead><tr><th>Month</th><th>Orders</th><th>Coffee</th><th>Milk</th><th>Sugar</th></tr></thead><tbody>${rows}</tbody><tfoot><tr class="total"><td>TOTAL</td><td>${totals.orders}</td><td>${totals.coffee.toLocaleString()}g</td><td>${totals.milk.toLocaleString()}ml</td><td>${totals.sugar.toLocaleString()}g</td></tr></tfoot></table><div class="footer">Coffee Machine Analytics App · ${generatedAt}</div></body></html>`;
+};
 
 export function Analytics({ adminEmail, onBack }: AnalyticsProps) {
   const { colors } = useTheme();
-  const [selectedYear, setSelectedYear] = useState("2025");
+  const { db, isReady } = useDatabase();
+
+  const [selectedYear, setSelectedYear] = useState("2026");
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [showDownloadDialog, setShowDownloadDialog] = useState(false);
   const [fileName, setFileName] = useState("");
-  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [showYearDropdown, setShowYearDropdown] = useState(false);
+  const [emailInput, setEmailInput] = useState(adminEmail);
+  const [realOrdersThisMonth, setRealOrdersThisMonth] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
 
-  const monthlyData = dataByYear[selectedYear] || dataByYear["2025"];
+  useEffect(() => {
+    if (!db || !isReady) return;
+    const now = new Date();
+    // ── Samo COMPLETED narudžbine se dodaju u analytics ─────────────────────
+    db.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM orders
+       WHERE status = 'completed'
+       AND strftime('%Y', created_at) = ?
+       AND strftime('%m', created_at) = ?`,
+      [
+        now.getFullYear().toString(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+      ],
+    )
+      .then((r) => {
+        if (r) setRealOrdersThisMonth(r.count);
+      })
+      .catch(() => {});
+    // ─────────────────────────────────────────────────────────────────────────
+  }, [db, isReady]);
+
   const availableYears = Object.keys(dataByYear).sort(
-    (a, b) => Number(b) - Number(a)
+    (a, b) => Number(b) - Number(a),
   );
+  const currentYear = new Date().getFullYear().toString();
+  const currentMonthIdx = new Date().getMonth();
+  const MONTH_NAMES = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
 
-  const handleEmailReport = () => {
-    setShowEmailDialog(false);
-    Alert.alert("Success", `Report sent to ${adminEmail}!`);
-  };
+  const monthlyData = useMemo(() => {
+    const base = dataByYear[selectedYear] || dataByYear["2026"];
+    if (selectedYear !== currentYear || realOrdersThisMonth === 0) return base;
+    return base.map((row, idx) => {
+      if (idx !== currentMonthIdx) return row;
+      return {
+        ...row,
+        orders: row.orders + realOrdersThisMonth,
+        coffee: row.coffee + realOrdersThisMonth * COFFEE_G_PER_ORDER,
+        milk: row.milk + realOrdersThisMonth * MILK_ML_PER_ORDER,
+        sugar: row.sugar + Math.round(realOrdersThisMonth * SUGAR_G_PER_ORDER),
+      };
+    });
+  }, [selectedYear, realOrdersThisMonth, currentYear, currentMonthIdx]);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     const name = fileName.trim() || `coffee-analytics-${selectedYear}`;
     setShowDownloadDialog(false);
     setFileName("");
-    Alert.alert("Success", `Saving as ${name}.pdf...`);
+    setIsExporting(true);
+    try {
+      const html = generateReportHTML(
+        monthlyData,
+        selectedYear,
+        new Date().toLocaleDateString("en-GB"),
+      );
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "application/pdf",
+          dialogTitle: `Save ${name}.pdf`,
+          UTI: "com.adobe.pdf",
+        });
+      } else {
+        Alert.alert("Saved", `Report saved as ${name}.pdf`);
+      }
+    } catch {
+      Alert.alert(
+        "Error",
+        "Could not generate PDF.\nnpx expo install expo-print expo-sharing",
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleEmailReport = async () => {
+    setShowEmailDialog(false);
+    setIsExporting(true);
+    try {
+      const html = generateReportHTML(
+        monthlyData,
+        selectedYear,
+        new Date().toLocaleDateString("en-GB"),
+      );
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "application/pdf",
+          dialogTitle: `Send Analytics ${selectedYear}`,
+        });
+      } else {
+        Alert.alert("Success", `Report ready for ${emailInput}`);
+      }
+    } catch {
+      Alert.alert("Error", "Could not generate report.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, showYearDropdown && { zIndex: 2000 }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
             <ArrowLeft size={24} color="#ffffff" />
@@ -117,51 +255,91 @@ export function Analytics({ adminEmail, onBack }: AnalyticsProps) {
           </View>
         </View>
 
-        {/* Year Selector */}
         <View style={styles.yearSelector}>
           <Text style={styles.yearLabel}>Viewing Year</Text>
           <TouchableOpacity
-            onPress={() => setShowYearPicker(true)}
+            onPress={() => setShowYearDropdown(!showYearDropdown)}
             style={styles.yearButton}
           >
             <Text style={styles.yearButtonText}>{selectedYear}</Text>
+            <ChevronDown size={20} color="#ffffff" />
           </TouchableOpacity>
+          {showYearDropdown && (
+            <View style={styles.dropdownMenu}>
+              {availableYears.map((year) => (
+                <TouchableOpacity
+                  key={year}
+                  onPress={() => {
+                    setSelectedYear(year);
+                    setShowYearDropdown(false);
+                  }}
+                  style={[
+                    styles.dropdownItem,
+                    selectedYear === year && styles.dropdownItemSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      selectedYear === year && styles.dropdownItemTextSelected,
+                    ]}
+                  >
+                    {year}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
-        {/* Export Buttons */}
         <View style={styles.exportButtons}>
           <TouchableOpacity
-            onPress={() => setShowEmailDialog(true)}
+            onPress={() => {
+              setEmailInput(adminEmail);
+              setShowEmailDialog(true);
+            }}
             style={styles.exportButton}
+            disabled={isExporting}
           >
             <Mail size={16} color="#ffffff" />
-            <Text style={styles.exportButtonText}>Email</Text>
+            <Text style={styles.exportButtonText}>
+              {isExporting ? "..." : "Email"}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setShowDownloadDialog(true)}
             style={styles.exportButton}
+            disabled={isExporting}
           >
             <Download size={16} color="#ffffff" />
-            <Text style={styles.exportButtonText}>Download</Text>
+            <Text style={styles.exportButtonText}>
+              {isExporting ? "Generating..." : "Download PDF"}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Content */}
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Data Table */}
+        {/* Diskretna obavijest o realnim narudžbinama (samo completed) */}
+        {selectedYear === currentYear && realOrdersThisMonth > 0 && (
+          <View style={styles.realDataBanner}>
+            <Text style={styles.realDataBannerText}>
+              ℹ️ {realOrdersThisMonth} completed{" "}
+              {realOrdersThisMonth === 1 ? "order" : "orders"} added to{" "}
+              {MONTH_NAMES[currentMonthIdx]} data
+            </Text>
+          </View>
+        )}
+
         <View style={[styles.card, Shadows.md]}>
-          <Text style={styles.cardTitle}>Monthly Data - {selectedYear}</Text>
+          <Text style={styles.cardTitle}>Monthly Data — {selectedYear}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View>
-              {/* Table Header */}
               <View style={styles.tableHeader}>
-                <Text
-                  style={[styles.tableHeaderCell, styles.tableHeaderCellFirst]}
-                >
+                <Text style={[styles.tableHeaderCell, styles.tableCellFirst]}>
                   Month
                 </Text>
                 <Text style={styles.tableHeaderCell}>Orders</Text>
@@ -169,8 +347,6 @@ export function Analytics({ adminEmail, onBack }: AnalyticsProps) {
                 <Text style={styles.tableHeaderCell}>Milk</Text>
                 <Text style={styles.tableHeaderCell}>Sugar</Text>
               </View>
-
-              {/* Table Body */}
               {monthlyData.map((row, index) => (
                 <View
                   key={row.month}
@@ -183,35 +359,37 @@ export function Analytics({ adminEmail, onBack }: AnalyticsProps) {
                     {row.month}
                   </Text>
                   <Text style={styles.tableCell}>{row.orders}</Text>
-                  <Text style={styles.tableCell}>{row.coffee}g</Text>
-                  <Text style={styles.tableCell}>{row.milk}ml</Text>
-                  <Text style={styles.tableCell}>{row.sugar}g</Text>
+                  <Text style={styles.tableCell}>
+                    {row.coffee.toLocaleString()}g
+                  </Text>
+                  <Text style={styles.tableCell}>
+                    {row.milk.toLocaleString()}ml
+                  </Text>
+                  <Text style={styles.tableCell}>
+                    {row.sugar.toLocaleString()}g
+                  </Text>
                 </View>
               ))}
-
-              {/* Table Footer */}
               <View style={styles.tableFooter}>
                 <Text style={[styles.tableFooterCell, styles.tableCellFirst]}>
                   Total
                 </Text>
                 <Text style={styles.tableFooterCell}>
-                  {monthlyData.reduce((sum, row) => sum + row.orders, 0)}
+                  {monthlyData.reduce((s, r) => s + r.orders, 0)}
                 </Text>
                 <Text style={styles.tableFooterCell}>
                   {monthlyData
-                    .reduce((sum, row) => sum + row.coffee, 0)
+                    .reduce((s, r) => s + r.coffee, 0)
                     .toLocaleString()}
                   g
                 </Text>
                 <Text style={styles.tableFooterCell}>
-                  {monthlyData
-                    .reduce((sum, row) => sum + row.milk, 0)
-                    .toLocaleString()}
+                  {monthlyData.reduce((s, r) => s + r.milk, 0).toLocaleString()}
                   ml
                 </Text>
                 <Text style={styles.tableFooterCell}>
                   {monthlyData
-                    .reduce((sum, row) => sum + row.sugar, 0)
+                    .reduce((s, r) => s + r.sugar, 0)
                     .toLocaleString()}
                   g
                 </Text>
@@ -220,65 +398,6 @@ export function Analytics({ adminEmail, onBack }: AnalyticsProps) {
           </ScrollView>
         </View>
 
-        {/* Simple Bar Chart Visualization */}
-        <View style={[styles.card, Shadows.md]}>
-          <Text style={styles.cardTitle}>
-            Supply Consumption - {selectedYear}
-          </Text>
-          <View style={styles.chartLegend}>
-            <View style={styles.legendItem}>
-              <View
-                style={[styles.legendDot, { backgroundColor: "#6F4E37" }]}
-              />
-              <Text style={styles.legendText}>Coffee (g)</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View
-                style={[styles.legendDot, { backgroundColor: "#3b82f6" }]}
-              />
-              <Text style={styles.legendText}>Milk (ml)</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View
-                style={[styles.legendDot, { backgroundColor: "#ec4899" }]}
-              />
-              <Text style={styles.legendText}>Sugar (g)</Text>
-            </View>
-          </View>
-          <Text style={styles.chartNote}>
-            Note: Charts require additional library. Data shown in table above.
-          </Text>
-        </View>
-
-        {/* Popular Drinks */}
-        <View style={[styles.card, Shadows.md]}>
-          <Text style={styles.cardTitle}>Most Popular Drinks</Text>
-          <View style={styles.drinksList}>
-            {drinkPopularity.map((drink) => (
-              <View key={drink.name} style={styles.drinkItem}>
-                <View style={styles.drinkItemHeader}>
-                  <View style={styles.drinkItemLeft}>
-                    <View style={styles.drinkIcon}>
-                      <Coffee size={16} color="#6F4E37" />
-                    </View>
-                    <Text style={styles.drinkName}>{drink.name}</Text>
-                  </View>
-                  <Text style={styles.drinkCount}>{drink.count}</Text>
-                </View>
-                <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${drink.percentage}%` },
-                    ]}
-                  />
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Predictions */}
         <View style={styles.predictionCard}>
           <View style={styles.predictionHeader}>
             <TrendingUp size={20} color="#7c3aed" />
@@ -287,74 +406,41 @@ export function Analytics({ adminEmail, onBack }: AnalyticsProps) {
           <Text style={styles.predictionSubtitle}>
             Based on current trends:
           </Text>
-          <View style={styles.predictionList}>
-            <Text style={styles.predictionItem}>
-              • Estimated orders: 750-780
+          {[
+            "Estimated orders: 750–780",
+            "Coffee needed: ~15kg",
+            "Milk needed: ~11.5L",
+            "Sugar needed: ~2.1kg",
+          ].map((item, i) => (
+            <Text key={i} style={styles.predictionItem}>
+              • {item}
             </Text>
-            <Text style={styles.predictionItem}>• Coffee needed: ~15kg</Text>
-            <Text style={styles.predictionItem}>• Milk needed: ~11.5L</Text>
-            <Text style={styles.predictionItem}>• Sugar needed: ~2.1kg</Text>
-          </View>
+          ))}
         </View>
       </ScrollView>
 
-      {/* Year Picker Modal */}
-      <Modal visible={showYearPicker} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
-            <Text style={[styles.pickerTitle, { color: colors.foreground }]}>
-              Select Year
-            </Text>
-            {availableYears.map((year) => (
-              <TouchableOpacity
-                key={year}
-                onPress={() => {
-                  setSelectedYear(year);
-                  setShowYearPicker(false);
-                }}
-                style={[
-                  styles.yearOption,
-                  selectedYear === year && styles.yearOptionSelected,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.yearOptionText,
-                    { color: colors.foreground },
-                    selectedYear === year && styles.yearOptionTextSelected,
-                  ]}
-                >
-                  {year}
-                </Text>
-              </TouchableOpacity>
-            ))}
-            <Button
-              onPress={() => setShowYearPicker(false)}
-              variant="outline"
-              style={{ marginTop: 16 }}
-            >
-              Cancel
-            </Button>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Email Dialog */}
       <Modal visible={showEmailDialog} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.dialogModal, { backgroundColor: colors.card }]}>
             <Text style={[styles.dialogTitle, { color: colors.foreground }]}>
               Send Report via Email
             </Text>
-            <View style={styles.dialogBody}>
-              <Text style={styles.dialogLabel}>Report will be sent to:</Text>
-              <View style={styles.emailDisplay}>
-                <Text style={styles.emailText}>{adminEmail}</Text>
-              </View>
-              <Text style={styles.dialogNote}>
-                Includes all analytics data for {selectedYear}.
-              </Text>
-            </View>
+            <Text style={styles.dialogLabel}>Report will be sent to:</Text>
+            <TextInput
+              value={emailInput}
+              onChangeText={setEmailInput}
+              placeholder="Enter email address"
+              placeholderTextColor={colors.mutedForeground}
+              style={[
+                styles.emailInput,
+                { borderColor: colors.border, color: colors.foreground },
+              ]}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <Text style={styles.dialogNote}>
+              Includes all analytics data for {selectedYear}.
+            </Text>
             <View style={styles.dialogFooter}>
               <Button
                 variant="outline"
@@ -375,29 +461,26 @@ export function Analytics({ adminEmail, onBack }: AnalyticsProps) {
         </View>
       </Modal>
 
-      {/* Download Dialog */}
       <Modal visible={showDownloadDialog} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.dialogModal, { backgroundColor: colors.card }]}>
             <Text style={[styles.dialogTitle, { color: colors.foreground }]}>
               Download PDF Report
             </Text>
-            <View style={styles.dialogBody}>
-              <Text style={styles.dialogLabel}>File Name</Text>
-              <TextInput
-                value={fileName}
-                onChangeText={setFileName}
-                placeholder={`coffee-analytics-${selectedYear}`}
-                placeholderTextColor={colors.mutedForeground}
-                style={[
-                  styles.input,
-                  { borderColor: colors.border, color: colors.foreground },
-                ]}
-              />
-              <Text style={styles.dialogNote}>
-                Leave blank to use default name
-              </Text>
-            </View>
+            <Text style={styles.dialogLabel}>File Name</Text>
+            <TextInput
+              value={fileName}
+              onChangeText={setFileName}
+              placeholder={`coffee-analytics-${selectedYear}`}
+              placeholderTextColor={colors.mutedForeground}
+              style={[
+                styles.input,
+                { borderColor: colors.border, color: colors.foreground },
+              ]}
+            />
+            <Text style={styles.dialogNote}>
+              Leave blank to use default name
+            </Text>
             <View style={styles.dialogFooter}>
               <Button
                 variant="outline"
@@ -422,10 +505,7 @@ export function Analytics({ adminEmail, onBack }: AnalyticsProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F5DC",
-  },
+  container: { flex: 1, backgroundColor: "#F5F5DC" },
   header: {
     backgroundColor: "#16a34a",
     paddingHorizontal: 24,
@@ -433,6 +513,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
+    position: "relative",
   },
   headerTop: {
     flexDirection: "row",
@@ -443,67 +524,75 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(255,255,255,0.2)",
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#ffffff",
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#bbf7d0",
-  },
-  yearSelector: {
-    marginBottom: 16,
-  },
-  yearLabel: {
-    fontSize: 14,
-    color: "#bbf7d0",
-    marginBottom: 8,
-  },
+  headerTitle: { fontSize: 20, fontWeight: "600", color: "#ffffff" },
+  headerSubtitle: { fontSize: 14, color: "#bbf7d0" },
+  yearSelector: { marginBottom: 16, position: "relative" },
+  yearLabel: { fontSize: 14, color: "#bbf7d0", marginBottom: 8 },
   yearButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(255,255,255,0.2)",
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-  },
-  yearButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  exportButtons: {
     flexDirection: "row",
-    gap: 12,
+    justifyContent: "space-between",
+    alignItems: "center",
   },
+  yearButtonText: { color: "#ffffff", fontSize: 16, fontWeight: "500" },
+  dropdownMenu: {
+    position: "absolute",
+    top: 70,
+    left: 0,
+    right: 0,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+    overflow: "hidden",
+    zIndex: 3000,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  dropdownItemSelected: { backgroundColor: "#16a34a" },
+  dropdownItemText: { fontSize: 16, color: "#111827" },
+  dropdownItemTextSelected: { color: "#ffffff", fontWeight: "600" },
+  exportButtons: { flexDirection: "row", gap: 12 },
   exportButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 12,
     paddingVertical: 12,
   },
-  exportButtonText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "500",
+  exportButtonText: { color: "#ffffff", fontSize: 14, fontWeight: "500" },
+  content: { flex: 1 },
+  scrollContent: { padding: 24, paddingBottom: 140 },
+  realDataBanner: {
+    backgroundColor: "#dcfce7",
+    borderWidth: 1,
+    borderColor: "#86efac",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginBottom: 16,
   },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 24,
-    paddingBottom: 140,
-  },
+  realDataBannerText: { fontSize: 13, color: "#15803d" },
   card: {
     backgroundColor: "#ffffff",
     borderRadius: 16,
@@ -523,14 +612,11 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   tableHeaderCell: {
-    width: 80,
+    width: 90,
     fontSize: 12,
     fontWeight: "600",
     color: "#A0826D",
     textAlign: "right",
-  },
-  tableHeaderCellFirst: {
-    textAlign: "left",
   },
   tableRow: {
     flexDirection: "row",
@@ -538,98 +624,20 @@ const styles = StyleSheet.create({
     borderBottomColor: "#f3f4f6",
     paddingVertical: 8,
   },
-  tableRowEven: {
-    backgroundColor: "#f9fafb",
-  },
-  tableCell: {
-    width: 80,
-    fontSize: 12,
-    color: "#6F4E37",
-    textAlign: "right",
-  },
-  tableCellFirst: {
-    textAlign: "left",
-  },
+  tableRowEven: { backgroundColor: "#f9fafb" },
+  tableCell: { width: 90, fontSize: 12, color: "#6F4E37", textAlign: "right" },
+  tableCellFirst: { textAlign: "left" },
   tableFooter: {
     flexDirection: "row",
-    backgroundColor: "rgba(111, 78, 55, 0.05)",
+    backgroundColor: "rgba(111,78,55,0.05)",
     paddingVertical: 8,
   },
   tableFooterCell: {
-    width: 80,
+    width: 90,
     fontSize: 12,
     fontWeight: "600",
     color: "#6F4E37",
     textAlign: "right",
-  },
-  chartLegend: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-    marginTop: 16,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  legendText: {
-    fontSize: 12,
-    color: "#A0826D",
-  },
-  chartNote: {
-    fontSize: 12,
-    color: "#A0826D",
-    fontStyle: "italic",
-    marginTop: 16,
-  },
-  drinksList: {
-    gap: 16,
-  },
-  drinkItem: {
-    gap: 8,
-  },
-  drinkItemHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  drinkItemLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  drinkIcon: {
-    width: 32,
-    height: 32,
-    backgroundColor: "rgba(111, 78, 55, 0.1)",
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  drinkName: {
-    fontSize: 14,
-    color: "#6F4E37",
-  },
-  drinkCount: {
-    fontSize: 14,
-    color: "#A0826D",
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: "#f3f4f6",
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#f59e0b",
-    borderRadius: 4,
   },
   predictionCard: {
     backgroundColor: "#faf5ff",
@@ -644,87 +652,27 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
-  predictionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#581c87",
-  },
-  predictionSubtitle: {
-    fontSize: 14,
-    color: "#7c3aed",
-    marginBottom: 12,
-  },
-  predictionList: {
-    gap: 8,
-  },
-  predictionItem: {
-    fontSize: 14,
-    color: "#7c3aed",
-  },
+  predictionTitle: { fontSize: 16, fontWeight: "600", color: "#581c87" },
+  predictionSubtitle: { fontSize: 14, color: "#7c3aed", marginBottom: 12 },
+  predictionItem: { fontSize: 14, color: "#7c3aed", marginBottom: 6 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
     padding: 16,
   },
-  pickerModal: {
-    width: "100%",
-    maxWidth: 300,
-    borderRadius: 16,
-    padding: 24,
-  },
-  pickerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  yearOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  yearOptionSelected: {
-    backgroundColor: "#16a34a",
-  },
-  yearOptionText: {
-    fontSize: 16,
-    textAlign: "center",
-  },
-  yearOptionTextSelected: {
-    color: "#ffffff",
-    fontWeight: "600",
-  },
-  dialogModal: {
-    width: "100%",
-    maxWidth: 400,
-    borderRadius: 16,
-    padding: 24,
-  },
-  dialogTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 16,
-  },
-  dialogBody: {
-    marginBottom: 24,
-  },
-  dialogLabel: {
-    fontSize: 14,
-    color: "#6F4E37",
-    marginBottom: 8,
-  },
-  emailDisplay: {
-    backgroundColor: "#F5F5DC",
-    padding: 12,
+  dialogModal: { width: "100%", maxWidth: 400, borderRadius: 16, padding: 24 },
+  dialogTitle: { fontSize: 18, fontWeight: "600", marginBottom: 16 },
+  dialogLabel: { fontSize: 14, color: "#6F4E37", marginBottom: 8 },
+  emailInput: {
+    height: 48,
+    borderWidth: 2,
     borderRadius: 12,
-    marginBottom: 12,
-  },
-  emailText: {
+    paddingHorizontal: 16,
     fontSize: 14,
-    color: "#6F4E37",
+    marginBottom: 12,
+    backgroundColor: "#ffffff",
   },
   input: {
     height: 48,
@@ -734,19 +682,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 8,
   },
-  dialogNote: {
-    fontSize: 12,
-    color: "#A0826D",
-  },
-  dialogFooter: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  dialogButton: {
-    flex: 1,
-  },
-  dialogButtonText: {
-    color: "#ffffff",
-    marginLeft: 8,
-  },
+  dialogNote: { fontSize: 12, color: "#A0826D", marginBottom: 20 },
+  dialogFooter: { flexDirection: "row", gap: 12 },
+  dialogButton: { flex: 1 },
+  dialogButtonText: { color: "#ffffff", marginLeft: 8 },
 });
