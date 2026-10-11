@@ -1,7 +1,8 @@
-export type UserType = 'guest' | 'registered' | 'admin';
+export type UserType = "guest" | "registered" | "admin";
 
 export interface Order {
   id: string;
+  drinkId: string; // ← DODATO
   drinkName: string;
   timestamp: Date;
   size: string;
@@ -13,9 +14,9 @@ export interface Order {
 export interface DrinkSettings {
   strength: number;
   milk: number;
-  milkType: 'regular' | 'plant-based';
+  milkType: "regular" | "plant-based";
   sugar: number;
-  size: 'small' | 'medium' | 'large';
+  size: "small" | "medium" | "large";
   foam: number;
 }
 
