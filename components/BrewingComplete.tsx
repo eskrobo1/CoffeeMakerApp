@@ -1,9 +1,11 @@
+// components/BrewingComplete.tsx
 import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Image } from "react-native";
 import { useTheme } from "../constants/Theme";
 import { Button } from "./ui/button";
 
 interface BrewingCompleteProps {
+  drinkId: string;
   drinkName: string;
   measurements: {
     water: number;
@@ -15,100 +17,105 @@ interface BrewingCompleteProps {
   size: string;
   strength: string;
   milkType: string;
+  userName?: string;
   onDone: () => void;
 }
 
-// Coffee cup SVG component
-const LargeCoffeeCup = () => (
-  <View
-    style={{
-      width: 70,
-      height: 90,
-      alignItems: "center",
-      justifyContent: "center",
-    }}
-  >
-    <View
-      style={{
-        width: 56,
-        height: 75,
-        backgroundColor: "#C4A484",
-        borderRadius: 10,
-        borderTopLeftRadius: 5,
-        borderTopRightRadius: 5,
-      }}
-    />
-    <View
-      style={{
-        position: "absolute",
-        top: 0,
-        width: 62,
-        height: 12,
-        backgroundColor: "#E5E7EB",
-        borderRadius: 50,
-      }}
-    />
-  </View>
-);
+// "custom" je namjerno ISKLJUČEN iz drinkImages
+// — prikazujemo genericku ☕ ikonicu umjesto slike drugog napitka
+const drinkImages: { [key: string]: any } = {
+  "caffe-latte": require("../assets/drinks/caffe-latte.png"),
+  espresso: require("../assets/drinks/espresso.png"),
+  ristretto: require("../assets/drinks/ristretto.png"),
+  cortado: require("../assets/drinks/cortado.png"),
+  "latte-macchiato": require("../assets/drinks/latte-macchiato.png"),
+  coffee: require("../assets/drinks/coffee.png"),
+  cappuccino: require("../assets/drinks/cappuccino.png"),
+  "cold-brew-coffee": require("../assets/drinks/cold-brew-coffee.png"),
+  "espresso-macchiato": require("../assets/drinks/espresso-macchiato.png"),
+  "flat-white": require("../assets/drinks/flat-white.png"),
+  americano: require("../assets/drinks/americano.png"),
+  "lungo-barista": require("../assets/drinks/lungo-barista.png"),
+  "sweet-latte": require("../assets/drinks/sweet-latte.png"),
+  "espresso-doppio": require("../assets/drinks/espresso-doppio.png"),
+  "hot-water": require("../assets/drinks/hot-water.png"),
+  "portion-of-milk": require("../assets/drinks/portion-of-milk.png"),
+  "portion-of-milk-foam": require("../assets/drinks/portion-of-milk-foam.png"),
+};
 
-// Checkmark icon
-const CheckmarkIcon = () => (
-  <View style={styles.checkmarkContainer}>
-    <View style={styles.checkmarkStroke} />
-    <View style={styles.checkmarkStem} />
+// Generički prikaz kafe (za custom i nepoznate napitke)
+const GenericCoffeeImage = () => (
+  <View style={styles.genericImageWrap}>
+    <Text style={styles.genericEmoji}>☕</Text>
   </View>
 );
 
 export function BrewingComplete({
+  drinkId,
   drinkName,
-  measurements,
   size,
   strength,
   milkType,
+  userName,
   onDone,
 }: BrewingCompleteProps) {
   const { colors } = useTheme();
+
+  // Kratki opis napitka ispod naziva
+  const drinkDesc = [
+    size.charAt(0).toUpperCase() + size.slice(1),
+    strength !== "regular" ? strength : null,
+    milkType === "plant-based"
+      ? "Plant-based milk"
+      : milkType === "regular" && drinkId !== "hot-water"
+        ? null
+        : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.greeting, { color: colors.foreground }]}>
-          Hello, Guest
+          Hello, {userName || "Guest"}
         </Text>
       </View>
 
-      {/* Content */}
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
       >
-        {/* Drink Image */}
+        {/* Drink image or generic ☕ for custom */}
         <View style={styles.drinkImageContainer}>
-          <LargeCoffeeCup />
+          {drinkImages[drinkId] ? (
+            <Image
+              source={drinkImages[drinkId]}
+              style={styles.drinkImageStyle}
+              resizeMode="contain"
+            />
+          ) : (
+            // custom drink ili nepoznati drinkId → generička ☕ ikonica
+            <GenericCoffeeImage />
+          )}
         </View>
 
-        {/* Drink Name */}
+        {/* Drink name */}
         <Text style={[styles.drinkName, { color: colors.foreground }]}>
           {drinkName}
         </Text>
-        <Text
-          style={[styles.drinkDescription, { color: colors.mutedForeground }]}
-        >
-          Espresso mixed with steamed milk.
-        </Text>
-
-        {/* Recipe Summary */}
-        <View style={[styles.recipeSummary, { backgroundColor: colors.muted }]}>
-          <Text style={[styles.recipeText, { color: colors.mutedForeground }]}>
-            Size: {size}, {strength} strength, {milkType} milk
+        {drinkDesc ? (
+          <Text
+            style={[styles.drinkDescription, { color: colors.mutedForeground }]}
+          >
+            {drinkDesc}
           </Text>
-        </View>
+        ) : null}
 
-        {/* Success Icon */}
-        <View style={styles.successIcon}>
-          <CheckmarkIcon />
+        {/* ☕ ikonica za "Enjoy" */}
+        <View style={styles.coffeeIconWrapper}>
+          <Text style={styles.coffeeEmoji}>☕</Text>
         </View>
 
         {/* Message */}
@@ -133,98 +140,53 @@ export function BrewingComplete({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  greeting: {
-    fontSize: 20,
-    fontWeight: "600",
-  },
-  content: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16 },
+  greeting: { fontSize: 20, fontWeight: "600" },
+  content: { flex: 1 },
   scrollContent: {
     alignItems: "center",
-    justifyContent: "center",
     paddingHorizontal: 24,
+    paddingTop: 16,
     paddingBottom: 24,
   },
-  drinkImageContainer: {
-    marginBottom: 16,
+  drinkImageContainer: { marginBottom: 16 },
+  drinkImageStyle: { width: 120, height: 120 },
+  // Generic ☕ za custom napitak
+  genericImageWrap: {
+    width: 120,
+    height: 120,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f3f4f6",
+    borderRadius: 60,
   },
-  drinkName: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  drinkDescription: {
-    fontSize: 14,
-    textAlign: "center",
-    marginBottom: 24,
-  },
-  recipeSummary: {
-    width: "100%",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 32,
-  },
-  recipeText: {
-    fontSize: 14,
-    textAlign: "center",
-  },
-  successIcon: {
-    width: 80,
-    height: 80,
-    backgroundColor: "#10b981",
-    borderRadius: 40,
+  genericEmoji: { fontSize: 56 },
+  drinkName: { fontSize: 20, fontWeight: "600", marginBottom: 6 },
+  drinkDescription: { fontSize: 13, marginBottom: 32, color: "#6b7280" },
+  coffeeIconWrapper: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "#fef3c7",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
+    shadowColor: "#d97706",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  checkmarkContainer: {
-    width: 40,
-    height: 40,
-    position: "relative",
-  },
-  checkmarkStroke: {
-    position: "absolute",
-    width: 3,
-    height: 12,
-    backgroundColor: "#ffffff",
-    borderRadius: 2,
-    transform: [{ rotate: "45deg" }],
-    left: 12,
-    top: 20,
-  },
-  checkmarkStem: {
-    position: "absolute",
-    width: 3,
-    height: 24,
-    backgroundColor: "#ffffff",
-    borderRadius: 2,
-    transform: [{ rotate: "-45deg" }],
-    left: 22,
-    top: 8,
-  },
-  successTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
+  coffeeEmoji: { fontSize: 48, lineHeight: 56 },
+  successTitle: { fontSize: 22, fontWeight: "700", marginBottom: 10 },
   successMessage: {
     fontSize: 14,
     textAlign: "center",
-    lineHeight: 21,
+    lineHeight: 22,
+    color: "#6b7280",
   },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-  },
+  footer: { paddingHorizontal: 24, paddingBottom: 24, paddingTop: 8 },
   doneButton: {
     width: "100%",
     height: 56,
