@@ -1,3 +1,4 @@
+// components/UserProfile.tsx
 import React from "react";
 import {
   View,
@@ -5,10 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  StatusBar,
-  Platform,
 } from "react-native";
 import {
+  ArrowLeft,
   User,
   Mail,
   Coffee,
@@ -16,17 +16,19 @@ import {
   LogOut,
   Shield,
   Bell,
+  AlertCircle,
 } from "lucide-react-native";
-import { Switch } from "./ui/switch";
-import { LinearGradient } from "expo-linear-gradient";
 import type { UserType } from "../types";
 
 interface UserProfileProps {
-  userName: string;
+  userName: string; // email
+  displayName?: string; // puno ime (Emina Skrobo) — prikazuje se u headeru
   userType: UserType;
   favoritesCount: number;
   totalOrders: number;
   onLogout: () => void;
+  onBack?: () => void;
+  onReportProblem?: () => void;
   saveOrderHistory?: boolean;
   onToggleOrderHistory?: (value: boolean) => void;
   notifications?: boolean;
@@ -35,56 +37,62 @@ interface UserProfileProps {
 
 export function UserProfile({
   userName,
+  displayName,
   userType,
   favoritesCount,
   totalOrders,
   onLogout,
+  onBack,
+  onReportProblem,
   saveOrderHistory = true,
   onToggleOrderHistory,
   notifications = true,
   onToggleNotifications,
 }: UserProfileProps) {
-  const displayName = userName.split("@")[0];
+  // Koristi displayName (puno ime) ako postoji, inače dio emaila
+  const headerName = displayName || userName.split("@")[0];
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={onBack}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <ArrowLeft size={24} color="#111827" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-
-        {/* Profile Info */}
-        <View style={styles.profileInfo}>
-          <View style={styles.avatarContainer}>
-            <User size={40} color="#4b5563" />
-          </View>
-          <Text style={styles.displayName}>{displayName}</Text>
-          <View style={styles.emailContainer}>
-            <Mail size={16} color="#6b7280" />
-            <Text style={styles.emailText}>{userName}</Text>
-          </View>
-
-          {userType === "admin" && (
-            <View style={styles.adminBadge}>
-              <Shield size={12} color="#ffffff" style={styles.badgeIcon} />
-              <Text style={styles.adminBadgeText}>Administrator</Text>
-            </View>
-          )}
-
-          {/* Logout Button */}
-          <TouchableOpacity
-            onPress={onLogout}
-            style={styles.logoutButton}
-            activeOpacity={0.8}
-          >
-            <LogOut size={20} color="#ffffff" style={styles.logoutIcon} />
-            <Text style={styles.logoutButtonText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
-      {/* Content */}
+      {/* Profile info */}
+      <View style={styles.profileSection}>
+        <View style={styles.avatarContainer}>
+          <User size={40} color="#4b5563" />
+        </View>
+        {/* Puno ime */}
+        <Text style={styles.displayName}>{headerName}</Text>
+        <View style={styles.emailContainer}>
+          <Mail size={16} color="#6b7280" />
+          <Text style={styles.emailText}>{userName}</Text>
+        </View>
+        {userType === "admin" && (
+          <View style={styles.adminBadge}>
+            <Shield size={12} color="#ffffff" />
+            <Text style={styles.adminBadgeText}>Administrator</Text>
+          </View>
+        )}
+        <TouchableOpacity
+          onPress={onLogout}
+          style={styles.logoutButton}
+          activeOpacity={0.8}
+        >
+          <LogOut size={20} color="#ffffff" />
+          <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
@@ -101,13 +109,12 @@ export function UserProfile({
               <Text style={styles.statValue}>{totalOrders}</Text>
               <Text style={styles.statLabel}>Total Orders</Text>
             </View>
-
             <View style={styles.statItemRose}>
               <View style={styles.statIconContainerRose}>
                 <Heart size={24} color="#e11d48" />
               </View>
               <Text style={styles.statValue}>{favoritesCount}</Text>
-              <Text style={styles.statLabel}>Favorites</Text>
+              <Text style={styles.statLabel}>Favourites</Text>
             </View>
           </View>
         </View>
@@ -115,59 +122,80 @@ export function UserProfile({
         {/* Preferences */}
         <View style={styles.preferencesCard}>
           <Text style={styles.sectionTitle}>Preferences</Text>
-
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceInfo}>
               <View style={styles.preferenceIconBlue}>
                 <Bell size={20} color="#2563eb" />
               </View>
-              <View style={styles.preferenceText}>
+              <View>
                 <Text style={styles.preferenceName}>Push Notifications</Text>
                 <Text style={styles.preferenceDescription}>
                   Get notified when ready
                 </Text>
               </View>
             </View>
-            <Switch
-              checked={notifications}
-              onCheckedChange={onToggleNotifications}
-            />
+            <TouchableOpacity
+              onPress={() => onToggleNotifications?.(!notifications)}
+              style={[
+                styles.switch,
+                { backgroundColor: notifications ? "#22c55e" : "#d1d5db" },
+              ]}
+            >
+              <View
+                style={[
+                  styles.switchThumb,
+                  { marginLeft: notifications ? 20 : 2 },
+                ]}
+              />
+            </TouchableOpacity>
           </View>
-
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceInfo}>
               <View style={styles.preferenceIconGreen}>
                 <Coffee size={20} color="#16a34a" />
               </View>
-              <View style={styles.preferenceText}>
+              <View>
                 <Text style={styles.preferenceName}>Save Order History</Text>
                 <Text style={styles.preferenceDescription}>
                   Track your coffee habits
                 </Text>
               </View>
             </View>
-            <Switch
-              checked={saveOrderHistory}
-              onCheckedChange={onToggleOrderHistory}
-            />
+            <TouchableOpacity
+              onPress={() => onToggleOrderHistory?.(!saveOrderHistory)}
+              style={[
+                styles.switch,
+                { backgroundColor: saveOrderHistory ? "#22c55e" : "#d1d5db" },
+              ]}
+            >
+              <View
+                style={[
+                  styles.switchThumb,
+                  { marginLeft: saveOrderHistory ? 20 : 2 },
+                ]}
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Admin Info */}
-        {userType === "admin" && (
-          <LinearGradient
-            colors={["#faf5ff", "#eff6ff"]}
-            style={styles.adminCard}
+        {/* Report a Problem */}
+        {onReportProblem && (
+          <TouchableOpacity
+            style={styles.reportButton}
+            onPress={onReportProblem}
+            activeOpacity={0.8}
           >
-            <View style={styles.adminHeader}>
-              <Shield size={20} color="#7c3aed" />
-              <Text style={styles.adminTitle}>Admin Access</Text>
+            <View style={styles.reportIconWrap}>
+              <AlertCircle size={20} color="#dc2626" />
             </View>
-            <Text style={styles.adminDescription}>
-              You have full administrative access to device management,
-              analytics, supply monitoring, and drink availability settings.
-            </Text>
-          </LinearGradient>
+            <View style={styles.reportTextWrap}>
+              <Text style={styles.reportTitle}>Report a Problem</Text>
+              <Text style={styles.reportSub}>
+                Send a message to the administrator
+              </Text>
+            </View>
+            <Text style={styles.reportArrow}>→</Text>
+          </TouchableOpacity>
         )}
       </ScrollView>
     </View>
@@ -175,24 +203,30 @@ export function UserProfile({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f9fafb",
-  },
+  container: { flex: 1, backgroundColor: "#f9fafb" },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#ffffff",
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "ios" ? 60 : 20,
-    paddingBottom: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
+    gap: 12,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 32,
-  },
-  profileInfo: {
+  backButton: {
+    width: 40,
+    height: 40,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: { fontSize: 20, fontWeight: "600", color: "#111827" },
+  profileSection: {
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
   },
   avatarContainer: {
     width: 80,
@@ -202,6 +236,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
+    marginTop: 16,
   },
   displayName: {
     fontSize: 20,
@@ -215,27 +250,18 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 16,
   },
-  emailText: {
-    fontSize: 14,
-    color: "#6b7280",
-  },
+  emailText: { fontSize: 14, color: "#6b7280" },
   adminBadge: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 4,
     backgroundColor: "#000000",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
     marginBottom: 16,
   },
-  badgeIcon: {
-    marginRight: 4,
-  },
-  adminBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#ffffff",
-  },
+  adminBadgeText: { fontSize: 12, fontWeight: "600", color: "#ffffff" },
   logoutButton: {
     width: "100%",
     height: 48,
@@ -244,19 +270,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
     marginTop: 8,
   },
-  logoutIcon: {
-    marginRight: 8,
-  },
-  logoutButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#ffffff",
-  },
-  content: {
-    flex: 1,
-  },
+  logoutButtonText: { fontSize: 16, fontWeight: "600", color: "#ffffff" },
+  content: { flex: 1 },
   contentContainer: {
     paddingHorizontal: 24,
     paddingVertical: 24,
@@ -267,10 +285,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 24,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
@@ -282,10 +297,7 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginBottom: 16,
   },
-  statsGrid: {
-    flexDirection: "row",
-    gap: 16,
-  },
+  statsGrid: { flexDirection: "row", gap: 16 },
   statItem: {
     flex: 1,
     alignItems: "center",
@@ -324,23 +336,17 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginBottom: 4,
   },
-  statLabel: {
-    fontSize: 14,
-    color: "#4b5563",
-  },
+  statLabel: { fontSize: 14, color: "#4b5563" },
   preferencesCard: {
     backgroundColor: "#ffffff",
     borderRadius: 16,
     padding: 24,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   preferenceItem: {
     flexDirection: "row",
@@ -371,39 +377,51 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  preferenceText: {
-    flex: 1,
-  },
   preferenceName: {
     fontSize: 14,
     fontWeight: "500",
     color: "#111827",
     marginBottom: 2,
   },
-  preferenceDescription: {
-    fontSize: 12,
-    color: "#6b7280",
+  preferenceDescription: { fontSize: 12, color: "#6b7280" },
+  switch: { width: 44, height: 24, borderRadius: 12, padding: 2 },
+  switchThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#ffffff",
   },
-  adminCard: {
-    borderWidth: 2,
-    borderColor: "#e9d5ff",
-    borderRadius: 16,
-    padding: 24,
-  },
-  adminHeader: {
+  reportButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  adminTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#581c87",
+  reportIconWrap: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#fee2e2",
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  adminDescription: {
+  reportTextWrap: { flex: 1 },
+  reportTitle: {
     fontSize: 14,
-    color: "#6b21a8",
-    lineHeight: 20,
+    fontWeight: "600",
+    color: "#dc2626",
+    marginBottom: 2,
   },
+  reportSub: { fontSize: 12, color: "#6b7280" },
+  reportArrow: { fontSize: 18, color: "#dc2626" },
 });
