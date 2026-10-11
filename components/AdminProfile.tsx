@@ -1,22 +1,22 @@
+// components/AdminProfile.tsx
 import React from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
+  StyleSheet,
 } from "react-native";
 import {
+  ArrowLeft,
   User,
   Mail,
-  Shield,
   Coffee,
   Heart,
-  Bell,
   LogOut,
+  Shield,
+  Bell,
 } from "lucide-react-native";
-import { useTheme, Shadows } from "../constants/Theme";
-import { Button } from "./ui/button";
 
 interface AdminProfileProps {
   userName: string;
@@ -41,175 +41,131 @@ export function AdminProfile({
   notifications = true,
   onToggleNotifications,
 }: AdminProfileProps) {
-  const { colors } = useTheme();
-  const displayName = userName.split("@")[0];
+  const displayName = userName.includes("@")
+    ? userName.split("@")[0]
+    : userName;
 
   return (
-    <View style={[styles.container, { backgroundColor: "#f9fafb" }]}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-          Profile
-        </Text>
-
-        {/* Profile Info */}
-        <View style={styles.profileInfo}>
-          <View style={styles.avatar}>
-            <User size={40} color="#ffffff" />
-          </View>
-          <Text style={[styles.displayName, { color: colors.foreground }]}>
-            {displayName}
-          </Text>
-          <View style={styles.emailRow}>
-            <Mail size={16} color={colors.mutedForeground} />
-            <Text style={[styles.email, { color: colors.mutedForeground }]}>
-              {userName}
-            </Text>
-          </View>
-          <View style={styles.badge}>
-            <Shield size={12} color="#ffffff" />
-            <Text style={styles.badgeText}>Administrator</Text>
-          </View>
-
-          <Button onPress={onLogout} style={styles.logoutButton}>
-            <LogOut size={20} color="#ffffff" />
-            <Text style={styles.logoutText}>Logout</Text>
-          </Button>
-        </View>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={onBack}
+          style={styles.backButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <ArrowLeft size={24} color="#111827" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Profile</Text>
       </View>
 
-      {/* Content */}
+      {/* Profile info */}
+      <View style={styles.profileSection}>
+        <View style={styles.avatarContainer}>
+          <User size={40} color="#4b5563" />
+        </View>
+        <Text style={styles.displayName}>{displayName}</Text>
+        <View style={styles.emailContainer}>
+          <Mail size={16} color="#6b7280" />
+          <Text style={styles.emailText}>{userName}</Text>
+        </View>
+        <View style={styles.adminBadge}>
+          <Shield size={12} color="#ffffff" />
+          <Text style={styles.adminBadgeText}>Administrator</Text>
+        </View>
+        <TouchableOpacity
+          onPress={onLogout}
+          style={styles.logoutButton}
+          activeOpacity={0.8}
+        >
+          <LogOut size={20} color="#ffffff" />
+          <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.content}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Stats */}
-        <View
-          style={[styles.card, Shadows.sm, { backgroundColor: colors.card }]}
-        >
-          <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-            Your Statistics
-          </Text>
+        {/* Stats — eksplicitno tamne boje za brojeve */}
+        <View style={styles.statsCard}>
+          <Text style={styles.sectionTitle}>Your Statistics</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
               <View style={styles.statIconContainer}>
-                <Coffee size={24} color="#ea580c" />
+                <Coffee size={24} color="#b45309" />
               </View>
+              {/* Eksplicitno #111827 — ne oslanjamo se na theme color */}
               <Text style={styles.statValue}>{totalOrders}</Text>
               <Text style={styles.statLabel}>Total Orders</Text>
             </View>
-            <View style={styles.statItem}>
-              <View
-                style={[
-                  styles.statIconContainer,
-                  { backgroundColor: "#ffe4e6" },
-                ]}
-              >
+            <View style={styles.statItemRose}>
+              <View style={styles.statIconContainerRose}>
                 <Heart size={24} color="#e11d48" />
               </View>
               <Text style={styles.statValue}>{favoritesCount}</Text>
-              <Text style={styles.statLabel}>Favorites</Text>
+              <Text style={styles.statLabel}>Favourites</Text>
             </View>
           </View>
         </View>
 
         {/* Preferences */}
-        <View
-          style={[styles.card, Shadows.sm, { backgroundColor: colors.card }]}
-        >
-          <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-            Preferences
-          </Text>
-          <View style={styles.preferencesList}>
-            <View style={styles.preferenceItem}>
-              <View style={styles.preferenceLeft}>
-                <View
-                  style={[
-                    styles.preferenceIcon,
-                    { backgroundColor: "#dbeafe" },
-                  ]}
-                >
-                  <Bell size={20} color="#2563eb" />
-                </View>
-                <View>
-                  <Text
-                    style={[
-                      styles.preferenceTitle,
-                      { color: colors.foreground },
-                    ]}
-                  >
-                    Push Notifications
-                  </Text>
-                  <Text
-                    style={[
-                      styles.preferenceDescription,
-                      { color: colors.mutedForeground },
-                    ]}
-                  >
-                    Get notified when ready
-                  </Text>
-                </View>
+        <View style={styles.preferencesCard}>
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          <View style={styles.preferenceItem}>
+            <View style={styles.preferenceInfo}>
+              <View style={styles.preferenceIconBlue}>
+                <Bell size={20} color="#2563eb" />
               </View>
-              <TouchableOpacity
-                onPress={() => onToggleNotifications?.(!notifications)}
-                style={[
-                  styles.switch,
-                  { backgroundColor: notifications ? "#22c55e" : "#d1d5db" },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.switchThumb,
-                    { marginLeft: notifications ? 20 : 2 },
-                  ]}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.preferenceItem}>
-              <View style={styles.preferenceLeft}>
-                <View
-                  style={[
-                    styles.preferenceIcon,
-                    { backgroundColor: "#dcfce7" },
-                  ]}
-                >
-                  <Coffee size={20} color="#16a34a" />
-                </View>
-                <View>
-                  <Text
-                    style={[
-                      styles.preferenceTitle,
-                      { color: colors.foreground },
-                    ]}
-                  >
-                    Save Order History
-                  </Text>
-                  <Text
-                    style={[
-                      styles.preferenceDescription,
-                      { color: colors.mutedForeground },
-                    ]}
-                  >
-                    Track your coffee habits
-                  </Text>
-                </View>
+              <View>
+                <Text style={styles.preferenceName}>Push Notifications</Text>
+                <Text style={styles.preferenceDescription}>
+                  Get notified when ready
+                </Text>
               </View>
-              <TouchableOpacity
-                onPress={() => onToggleOrderHistory?.(!saveOrderHistory)}
-                style={[
-                  styles.switch,
-                  { backgroundColor: saveOrderHistory ? "#22c55e" : "#d1d5db" },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.switchThumb,
-                    { marginLeft: saveOrderHistory ? 20 : 2 },
-                  ]}
-                />
-              </TouchableOpacity>
             </View>
+            <TouchableOpacity
+              onPress={() => onToggleNotifications?.(!notifications)}
+              style={[
+                styles.switch,
+                { backgroundColor: notifications ? "#22c55e" : "#d1d5db" },
+              ]}
+            >
+              <View
+                style={[
+                  styles.switchThumb,
+                  { marginLeft: notifications ? 20 : 2 },
+                ]}
+              />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.preferenceItem}>
+            <View style={styles.preferenceInfo}>
+              <View style={styles.preferenceIconGreen}>
+                <Coffee size={20} color="#16a34a" />
+              </View>
+              <View>
+                <Text style={styles.preferenceName}>Save Order History</Text>
+                <Text style={styles.preferenceDescription}>
+                  Track your coffee habits
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => onToggleOrderHistory?.(!saveOrderHistory)}
+              style={[
+                styles.switch,
+                { backgroundColor: saveOrderHistory ? "#22c55e" : "#d1d5db" },
+              ]}
+            >
+              <View
+                style={[
+                  styles.switchThumb,
+                  { marginLeft: saveOrderHistory ? 20 : 2 },
+                ]}
+              />
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -218,46 +174,55 @@ export function AdminProfile({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: "#f9fafb" },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
     paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: 24,
+    paddingBottom: 16,
+    gap: 12,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "600",
-    marginBottom: 32,
-  },
-  profileInfo: {
+  backButton: {
+    width: 40,
+    height: 40,
     alignItems: "center",
+    justifyContent: "center",
   },
-  avatar: {
+  headerTitle: { fontSize: 20, fontWeight: "600", color: "#111827" },
+  profileSection: {
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  avatarContainer: {
     width: 80,
     height: 80,
-    backgroundColor: "#1f2937",
+    backgroundColor: "#f3f4f6",
     borderRadius: 40,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
+    marginTop: 16,
   },
   displayName: {
     fontSize: 20,
     fontWeight: "600",
+    color: "#111827",
     marginBottom: 8,
   },
-  emailRow: {
+  emailContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginBottom: 16,
   },
-  email: {
-    fontSize: 14,
-  },
-  badge: {
+  emailText: { fontSize: 14, color: "#6b7280" },
+  adminBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
@@ -267,108 +232,130 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
   },
-  badgeText: {
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "600",
-  },
+  adminBadgeText: { fontSize: 12, fontWeight: "600", color: "#ffffff" },
   logoutButton: {
     width: "100%",
     height: 48,
     backgroundColor: "#000000",
+    borderRadius: 24,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     marginTop: 8,
   },
-  logoutText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 24,
+  logoutButtonText: { fontSize: 16, fontWeight: "600", color: "#ffffff" },
+  content: { flex: 1 },
+  contentContainer: {
+    paddingHorizontal: 24,
+    paddingVertical: 24,
     paddingBottom: 140,
   },
-  card: {
+  statsCard: {
+    backgroundColor: "#ffffff",
     borderRadius: 16,
     padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
     marginBottom: 24,
   },
-  cardTitle: {
+  sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
+    color: "#111827",
     marginBottom: 16,
   },
-  statsGrid: {
-    flexDirection: "row",
-    gap: 16,
-  },
+  statsGrid: { flexDirection: "row", gap: 16 },
   statItem: {
     flex: 1,
-    backgroundColor: "#fff7ed",
-    borderRadius: 12,
-    padding: 16,
     alignItems: "center",
+    padding: 16,
+    backgroundColor: "#fffbeb",
+    borderRadius: 12,
+  },
+  statItemRose: {
+    flex: 1,
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: "#fff1f2",
+    borderRadius: 12,
   },
   statIconContainer: {
     width: 48,
     height: 48,
-    backgroundColor: "#ffedd5",
+    backgroundColor: "#fef3c7",
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
   },
+  statIconContainerRose: {
+    width: 48,
+    height: 48,
+    backgroundColor: "#fecdd3",
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  // Eksplicitno #111827 za brojeve — ne theme color koji može biti bijeli
   statValue: {
     fontSize: 24,
-    fontWeight: "600",
+    fontWeight: "700",
+    color: "#111827",
     marginBottom: 4,
   },
-  statLabel: {
-    fontSize: 12,
-    color: "#6b7280",
-  },
-  preferencesList: {
-    gap: 16,
+  statLabel: { fontSize: 14, color: "#4b5563" },
+  preferencesCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   preferenceItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 8,
+    marginBottom: 16,
   },
-  preferenceLeft: {
+  preferenceInfo: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     flex: 1,
   },
-  preferenceIcon: {
+  preferenceIconBlue: {
     width: 40,
     height: 40,
+    backgroundColor: "#dbeafe",
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
-  preferenceTitle: {
+  preferenceIconGreen: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#dcfce7",
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  preferenceName: {
     fontSize: 14,
     fontWeight: "500",
+    color: "#111827",
     marginBottom: 2,
   },
-  preferenceDescription: {
-    fontSize: 12,
-  },
-  switch: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    padding: 2,
-  },
+  preferenceDescription: { fontSize: 12, color: "#6b7280" },
+  switch: { width: 44, height: 24, borderRadius: 12, padding: 2 },
   switchThumb: {
     width: 20,
     height: 20,
