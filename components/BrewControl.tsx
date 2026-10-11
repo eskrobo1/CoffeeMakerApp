@@ -1,16 +1,46 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { Coffee } from "lucide-react-native";
 import { useTheme } from "../constants/Theme";
 import Slider from "@react-native-community/slider";
 
 interface BrewControlProps {
+  drinkId: string;
+  drinkName: string;
   onBrew: () => void;
   isBrewing: boolean;
   disabled: boolean;
 }
 
-export function BrewControl({ onBrew, isBrewing, disabled }: BrewControlProps) {
+// Mapa slika za svaki napitak
+const drinkImages: { [key: string]: any } = {
+  "caffe-latte": require("../assets/drinks/caffe-latte.png"),
+  espresso: require("../assets/drinks/espresso.png"),
+  ristretto: require("../assets/drinks/ristretto.png"),
+  cortado: require("../assets/drinks/cortado.png"),
+  "latte-macchiato": require("../assets/drinks/latte-macchiato.png"),
+  coffee: require("../assets/drinks/coffee.png"),
+  cappuccino: require("../assets/drinks/cappuccino.png"),
+  "cold-brew-coffee": require("../assets/drinks/cold-brew-coffee.png"),
+  "espresso-macchiato": require("../assets/drinks/espresso-macchiato.png"),
+  "flat-white": require("../assets/drinks/flat-white.png"),
+  americano: require("../assets/drinks/americano.png"),
+  "lungo-barista": require("../assets/drinks/lungo-barista.png"),
+  "sweet-latte": require("../assets/drinks/sweet-latte.png"),
+  "espresso-doppio": require("../assets/drinks/espresso-doppio.png"),
+  "hot-water": require("../assets/drinks/hot-water.png"),
+  "portion-of-milk": require("../assets/drinks/portion-of-milk.png"),
+  "portion-of-milk-foam": require("../assets/drinks/portion-of-milk-foam.png"),
+  custom: require("../assets/drinks/espresso.png"), // fallback
+};
+
+export function BrewControl({
+  drinkId,
+  drinkName,
+  onBrew,
+  isBrewing,
+  disabled,
+}: BrewControlProps) {
   const { colors } = useTheme();
   const [strength, setStrength] = useState<"mild" | "medium" | "strong">(
     "medium"
@@ -36,6 +66,29 @@ export function BrewControl({ onBrew, isBrewing, disabled }: BrewControlProps) {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
+        {/* Drink Preview */}
+        <View style={styles.drinkPreview}>
+          <View
+            style={[
+              styles.drinkImageContainer,
+              { backgroundColor: colors.muted },
+            ]}
+          >
+            {drinkImages[drinkId] ? (
+              <Image
+                source={drinkImages[drinkId]}
+                style={styles.drinkImage}
+                resizeMode="contain"
+              />
+            ) : (
+              <Coffee size={60} color={colors.mutedForeground} />
+            )}
+          </View>
+          <Text style={[styles.drinkNameText, { color: colors.foreground }]}>
+            {drinkName}
+          </Text>
+        </View>
+
         <Text style={[styles.title, { color: colors.foreground }]}>
           Customize Your Brew
         </Text>
@@ -188,6 +241,26 @@ const styles = StyleSheet.create({
   },
   content: {
     gap: 24,
+  },
+  drinkPreview: {
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  drinkImageContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  drinkImage: {
+    width: 90,
+    height: 90,
+  },
+  drinkNameText: {
+    fontSize: 20,
+    fontWeight: "600",
   },
   title: {
     fontSize: 18,

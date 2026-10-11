@@ -1,13 +1,36 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, StyleSheet, Animated, Easing } from "react-native";
+import { View, Text, StyleSheet, Animated, Easing, Image } from "react-native";
 import { Coffee, Clock, Users } from "lucide-react-native";
 import { Progress } from "./ui/progress";
 import { LinearGradient } from "expo-linear-gradient";
 
 interface OrderProgressProps {
   drinkName: string;
+  drinkId: string;
   onComplete: () => void;
 }
+
+// Mapa slika za svaki napitak
+const drinkImages: { [key: string]: any } = {
+  "caffe-latte": require("../assets/drinks/caffe-latte.png"),
+  espresso: require("../assets/drinks/espresso.png"),
+  ristretto: require("../assets/drinks/ristretto.png"),
+  cortado: require("../assets/drinks/cortado.png"),
+  "latte-macchiato": require("../assets/drinks/latte-macchiato.png"),
+  coffee: require("../assets/drinks/coffee.png"),
+  cappuccino: require("../assets/drinks/cappuccino.png"),
+  "cold-brew-coffee": require("../assets/drinks/cold-brew-coffee.png"),
+  "espresso-macchiato": require("../assets/drinks/espresso-macchiato.png"),
+  "flat-white": require("../assets/drinks/flat-white.png"),
+  americano: require("../assets/drinks/americano.png"),
+  "lungo-barista": require("../assets/drinks/lungo-barista.png"),
+  "sweet-latte": require("../assets/drinks/sweet-latte.png"),
+  "espresso-doppio": require("../assets/drinks/espresso-doppio.png"),
+  "hot-water": require("../assets/drinks/hot-water.png"),
+  "portion-of-milk": require("../assets/drinks/portion-of-milk.png"),
+  "portion-of-milk-foam": require("../assets/drinks/portion-of-milk-foam.png"),
+  custom: require("../assets/drinks/espresso.png"), // fallback za custom
+};
 
 const drinkNames: Record<string, string> = {
   espresso: "Espresso",
@@ -18,14 +41,18 @@ const drinkNames: Record<string, string> = {
   custom: "Custom Drink",
 };
 
-export function OrderProgress({ drinkName, onComplete }: OrderProgressProps) {
+export function OrderProgress({
+  drinkName,
+  drinkId,
+  onComplete,
+}: OrderProgressProps) {
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState("Grinding beans");
   const queuePosition = 0;
   const totalInQueue = 1;
   const estimatedTime = 45;
 
-  // Animacija za pulsiranje coffee ikone
+  // Animacija za pulsiranje slike napitka
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -91,21 +118,29 @@ export function OrderProgress({ drinkName, onComplete }: OrderProgressProps) {
   return (
     <LinearGradient colors={["#6F4E37", "#A0826D"]} style={styles.container}>
       <View style={styles.content}>
-        {/* Coffee Animation */}
+        {/* Drink Image Animation */}
         <Animated.View
           style={[
-            styles.coffeeIconContainer,
+            styles.drinkImageContainer,
             {
               transform: [{ scale: pulseAnim }],
             },
           ]}
         >
-          <Coffee size={64} color="#ffffff" />
+          {drinkImages[drinkId] ? (
+            <Image
+              source={drinkImages[drinkId]}
+              style={styles.drinkImage}
+              resizeMode="contain"
+            />
+          ) : (
+            <Coffee size={80} color="#ffffff" />
+          )}
         </Animated.View>
 
         {/* Drink Name */}
         <Text style={styles.drinkName}>
-          {drinkNames[drinkName] || "Your Drink"}
+          {drinkNames[drinkName] || drinkName}
         </Text>
         <Text style={styles.stage}>{stage}</Text>
 
@@ -166,14 +201,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
   },
-  coffeeIconContainer: {
-    width: 128,
-    height: 128,
+  drinkImageContainer: {
+    width: 140,
+    height: 140,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderRadius: 64,
+    borderRadius: 70,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 32,
+  },
+  drinkImage: {
+    width: 100,
+    height: 100,
   },
   drinkName: {
     fontSize: 28,

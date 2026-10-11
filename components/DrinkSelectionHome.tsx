@@ -5,17 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from "react-native";
-import {
-  Coffee,
-  Milk,
-  Heart,
-  Droplet,
-  Sparkles,
-  Wind,
-  Plus,
-  AlertCircle,
-} from "lucide-react-native";
+import { Heart, AlertCircle, Coffee } from "lucide-react-native";
 import { useTheme, Shadows } from "../constants/Theme";
 
 type UserType = "guest" | "registered" | "admin";
@@ -24,7 +16,6 @@ interface Drink {
   id: string;
   name: string;
   description: string;
-  icon: "coffee" | "milk" | "droplet" | "sparkles" | "wind" | "plus";
   color: string;
 }
 
@@ -38,69 +29,67 @@ interface DrinkSelectionHomeProps {
   hasAlerts?: boolean;
 }
 
+// Mapa slika za svaki napitak
+const drinkImages: { [key: string]: any } = {
+  "caffe-latte": require("../assets/drinks/caffe-latte.png"),
+  espresso: require("../assets/drinks/espresso.png"),
+  ristretto: require("../assets/drinks/ristretto.png"),
+  cortado: require("../assets/drinks/cortado.png"),
+  "latte-macchiato": require("../assets/drinks/latte-macchiato.png"),
+  coffee: require("../assets/drinks/coffee.png"),
+  cappuccino: require("../assets/drinks/cappuccino.png"),
+  "cold-brew-coffee": require("../assets/drinks/cold-brew-coffee.png"),
+  "espresso-macchiato": require("../assets/drinks/espresso-macchiato.png"),
+  "flat-white": require("../assets/drinks/flat-white.png"),
+  americano: require("../assets/drinks/americano.png"),
+  "lungo-barista": require("../assets/drinks/lungo-barista.png"),
+  "sweet-latte": require("../assets/drinks/sweet-latte.png"),
+  "espresso-doppio": require("../assets/drinks/espresso-doppio.png"),
+  "hot-water": require("../assets/drinks/hot-water.png"),
+  "portion-of-milk": require("../assets/drinks/portion-of-milk.png"),
+  "portion-of-milk-foam": require("../assets/drinks/portion-of-milk-foam.png"),
+  latte: require("../assets/drinks/caffe-latte.png"), // alias za latte
+  mocha: require("../assets/drinks/cappuccino.png"), // fallback
+};
+
 const drinks: Drink[] = [
   {
     id: "espresso",
     name: "Espresso",
     description: "Strong & bold",
-    icon: "coffee",
     color: "#78350f",
   },
   {
     id: "cappuccino",
     name: "Cappuccino",
     description: "Rich & creamy",
-    icon: "milk",
     color: "#ea580c",
   },
   {
     id: "latte",
     name: "Latte",
     description: "Smooth & mild",
-    icon: "droplet",
     color: "#f59e0b",
   },
   {
     id: "mocha",
     name: "Mocha",
     description: "Sweet chocolate",
-    icon: "sparkles",
     color: "#c2410c",
   },
   {
     id: "americano",
     name: "Americano",
     description: "Classic & clean",
-    icon: "wind",
     color: "#b45309",
   },
   {
     id: "custom",
     name: "Custom Drink",
     description: "Create your own",
-    icon: "plus",
     color: "#9333ea",
   },
 ];
-
-const getIcon = (iconType: string, size: number, color: string) => {
-  switch (iconType) {
-    case "coffee":
-      return <Coffee size={size} color={color} />;
-    case "milk":
-      return <Milk size={size} color={color} />;
-    case "droplet":
-      return <Droplet size={size} color={color} />;
-    case "sparkles":
-      return <Sparkles size={size} color={color} />;
-    case "wind":
-      return <Wind size={size} color={color} />;
-    case "plus":
-      return <Plus size={size} color={color} />;
-    default:
-      return <Coffee size={size} color={color} />;
-  }
-};
 
 export function DrinkSelectionHome({
   onSelectDrink,
@@ -187,7 +176,13 @@ export function DrinkSelectionHome({
                   <View style={styles.quickBadge}>
                     <Text style={styles.quickBadgeText}>Quick</Text>
                   </View>
-                  {getIcon(drink.icon, 36, "#ffffff")}
+                  {drinkImages[drink.id] && (
+                    <Image
+                      source={drinkImages[drink.id]}
+                      style={styles.favoriteDrinkImage}
+                      resizeMode="contain"
+                    />
+                  )}
                   <Text style={styles.favoriteCardText}>{drink.name}</Text>
                 </TouchableOpacity>
               ))}
@@ -235,7 +230,22 @@ export function DrinkSelectionHome({
                       />
                     </TouchableOpacity>
                   )}
-                {getIcon(drink.icon, 48, "#ffffff")}
+
+                {/* Drink Image or Fallback */}
+                {drink.id === "custom" ? (
+                  <View style={styles.customIconContainer}>
+                    <Text style={styles.customIconText}>+</Text>
+                  </View>
+                ) : drinkImages[drink.id] ? (
+                  <Image
+                    source={drinkImages[drink.id]}
+                    style={styles.drinkImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Coffee size={48} color="#ffffff" />
+                )}
+
                 <View style={styles.drinkCardContent}>
                   <Text style={styles.drinkCardName}>{drink.name}</Text>
                   <Text style={styles.drinkCardDescription}>
@@ -370,6 +380,10 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "600",
   },
+  favoriteDrinkImage: {
+    width: 48,
+    height: 48,
+  },
   favoriteCardText: {
     fontSize: 14,
     color: "#ffffff",
@@ -403,6 +417,21 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+  },
+  drinkImage: {
+    width: 60,
+    height: 60,
+  },
+  customIconContainer: {
+    width: 60,
+    height: 60,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  customIconText: {
+    fontSize: 48,
+    color: "#ffffff",
+    fontWeight: "300",
   },
   drinkCardContent: {
     alignItems: "center",
