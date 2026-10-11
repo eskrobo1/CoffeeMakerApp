@@ -1,4 +1,4 @@
-# ☕ Coffee Device App
+# Coffee Device App
 
 A smart office coffee machine ordering app built with React Native. Employees can remotely order drinks from their mobile device while administrators manage supplies, analytics, and machine maintenance.
 
